@@ -2,13 +2,14 @@
 
 ## Things to be done on own:
 1. Run main.py script
-2. Move sheet from categorized csv to budget tracker csv
-3. Copy Paste from categorized sheet to main sheet to get acess to all the formulas and charts present in the main sheet
-4. Note csv file must be 'csv -utf8'
+2. Move sheet from categorized csv to budget tracker csv (For detailed excel formulas and graphs)
+3. Note bank statement csv file must be 'csv -utf8' format.
+4. For acessing AI categorization Llama3 must be installed locally.
 
 
 ## Adding Category Keywords
-If you want to add for example "Myntra" as part of shopping, just add it in "Category Keywords.txt" and everything else will take care of itself.
+Default: AI automatically categorizes into specified topics.
+Manual: If you want to add for example "Myntra" as part of shopping, just add it in "Category Keywords.txt".
 
 
 
@@ -29,6 +30,11 @@ If you want to add for example "Myntra" as part of shopping, just add it in "Cat
 
 ### 3. CSV Categorizer 
                      --> Takes data from 'CleanCSV.csv' as input to organise into groups
-                     --> These groups are sorted based on keywords updated manually in the "Category Keywords.txt"
+                     --> These groups are sorted based on keywords updated automatically in the "Category Keywords.txt"
                      --> Finally puts the categorized data into "Categorized.csv" and deleted the intermediate "CleanCSV.csv" file.
+
+### 4. Categorizer_LLM + Ollama Tuning Files
+                    --> CategorizerLLM: Takes any vendor name and categorises them into one of the user predefined topics (Eg: Travel, Shopping, etc).
+                    --> Ollama Tuning: System prompt for Llama 3 (7B)
+                    
 
