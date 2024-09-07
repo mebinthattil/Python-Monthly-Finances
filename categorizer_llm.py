@@ -7,4 +7,3 @@ def categorize(company_name):
     },
     ])
     return(response['message']['content'])
-

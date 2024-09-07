@@ -7,21 +7,26 @@ All "Modes" to be indexed have been given the table below.
 |----------|-----------------|---------------|------|--------|-------|
 | Txn Date | Mode (Card,UPI) |Vendor Name    |Debit | Credit |Balance|
 |----------|-----------------|---------------|------|--------|-------|
-|01-06-2024|debit card       |KANTI SWEETS   |632   |        |803360 |
-|03-06-2024|UPI              |Truffles       |1210  |        |803560 |
-|05-06-2024|UPI              |Manan Bh       |      |320     |803860 |
-|06-06-2024|Internet Banking |BITS           |1000  |        |802360 |
-|08-06-2024|NEFT             |Jiny           |      |500     |803560 |
+|01-06-2024|debit card       |KANTI SWEETS   |632   |        |100000 |
+|03-06-2024|UPI              |Truffles       |1210  |        |100000 |
+|05-06-2024|UPI              |SomeDude       |      |320     |100000 |
+|06-06-2024|Internet Banking |BITS           |1000  |        |100000 |
+|08-06-2024|NEFT             |Maxi           |      |500     |100000 |
 |----------|-----------------|---------------|------|--------|-------|
 
 '''
 #imports
 import csv
+import platform, subprocess
 import os, sys
 
 
-#Getting file path info from user
-file_path = input("Enter the full file path for the original exported CSV file: ").strip("\"\"")
+dev_mode = False #set dev mode to True, for acess to logs
+
+if dev_mode:
+    file_path = "Enter path to csv file here so you dont have to type it again and again".strip("\"\"")
+else:
+    file_path = input("Enter the path of csv file: ").strip("\"\"")
 
 print("\n\n\nStarted extracting useful data from file...\n")
 
@@ -35,23 +40,46 @@ else:
 
 #cleaning up and adding only relavant transaction data to 'processed_data_list'
 processed_data_list = []
+target_row_number = 0
 for i in range(len(data)):
-    if data[i][0] == "Txn Date":
+    if "Txn Date" in data[i][0]:
         target_row_number = i
         break
-for row in data[target_row_number:]:
-    processed_data_list.append(row[1:])
 
+    
+             
+            
+        
+
+
+for row in data[target_row_number:]:
+    processed_data_list.append(row)
 #modifying header in list
-processed_data_list[0][0],processed_data_list[0][1],processed_data_list[0][2],processed_data_list[0][3] = "Date", "Payment Mode", "Vendor", "Debit"
-#Header now looks like ['Date','Payment Mode','Vendor','Debit','Credit','Balance']    
+#processed_data_list[0][0],processed_data_list[0][1],processed_data_list[0][2],processed_data_list[0][3] = "Date", "Payment Mode", "Vendor", "Debit"
+processed_data_list[0] = ['Date','Payment Mode','Vendor','Debit','Credit','Balance']
+
+# Header now looks like ['Date','Payment Mode','Vendor','Debit','Credit','Balance']    
+
+#converting processed_data_list to proper format
+formated_list = []
+for i in processed_data_list[1:-2]:
+    text = i[0].replace(",,", ',Ref No. Not Found,')
+    text = text.replace(", ,",',0,')
+    l = text.split('"')
+    nl = l[0].split(',') + l[1:]
+    while '' in nl:
+        nl.remove('')
+    nl = [nl[0]] + [nl[2].strip()] +[nl[4]] +[nl[5]] +[nl[-1]]
+    if dev_mode:
+        print("String to list:",nl)
+    formated_list.append(nl)
 
 #creating the final list which we will return at the end
 export_list = []
 export_list.append(processed_data_list[0]) #adding header
 
 #cleaning up each transaction details by extracting mode of payment, vendor, etc.
-for rows in processed_data_list[1:]:
+for rows in formated_list:
     sublist = [] #sublist should be in format ['Date','Payment Mode','Vendor','Debit','Credit','Balance',]
     rows_copy = rows.copy()
 #########################################################################
@@ -121,19 +149,18 @@ for rows in processed_data_list[1:]:
     '''Done with adding Vendor name to sublist'''
 ##########################################################################################
     '''Adding Debit Info to sublist'''
-    sublist.append(rows[3])
+    sublist.append(rows[2])
 #########################################################################################
     '''Adding Credit Info to sublist'''
-    sublist.append(rows[4])
+    sublist.append(rows[3])
 #########################################################################################
     '''Adding Balance Info to sublist'''
-    sublist.append(rows[5])
+    sublist.append(rows[4])
 #########################################################################################
     '''  Sublist complete :) '''
 
     export_list.append(sublist)
 
-export_list = export_list[:-2] # removing csv footer
 
 
 '''Writing to a csv file'''
@@ -150,4 +177,8 @@ file_object.close()
 print("\nData successfully extracted, Going to start categorizing Data...\n")
 
 if __name__ == '__main__':
-    os.startfile("CleanCSV.csv")
+    if platform.system() == "Windows":
+        os.startfile("CleanCSV.csv")
+    else:
+        opener = "open" if sys.platform == "darwin" else "xdg-open"
+        subprocess.call([opener, "CleanCSV.csv"])

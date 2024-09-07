@@ -12,13 +12,13 @@ Category names must be in the format : "--<category name>--"
 |          |                 |                             |      |        |       |
 |          |                 |--Food & Transportation--    |      |        |       |
 |          |                 |                             |      |        |       |
-|01-06-2024|debit card       |Zomato                       |632   |        |803360 |
-|03-06-2024|UPI              |Ola                          |1210  |        |803560 |
+|01-06-2024|debit card       |Zomato                       |632   |        |100000 |
+|03-06-2024|UPI              |Ola                          |1210  |        |200000 |
 |          |                 |                             |      |        |       |
 |          |                 |--Shopping--                 |      |        |       |
 |          |                 |                             |      |        |       |
-|05-06-2024|UPI              |Amazon                       |      |320     |803860 |
-|06-06-2024|Internet Banking |Flipkart                     |1000  |        |802360 |
+|05-06-2024|UPI              |Amazon                       |      |320     |300000 |
+|06-06-2024|Internet Banking |Flipkart                     |1000  |        |400000 |
 |----------|-----------------|-----------------------------|------|--------|-------|
 
 
@@ -27,9 +27,11 @@ Category names must be in the format : "--<category name>--"
 import csv
 import os, sys, subprocess
 from categorizer_llm import categorize
+from format_checker import format_checked
 
 
-#Getting file path info from user
+dev_mode = False #set dev mode to True, for acess to logs
+
 file_path = "CleanCSV.csv"
 
 #Creating Category Keywords Dictionary
@@ -38,10 +40,10 @@ keyword_dictionary = eval(keywords_file_object.read())
 keywords_file_object.close()
 print("\nStarted Categorizing Data...\n")
 
-#reading data from dump csv
+#reading data from clean csv
 file_object = open(r'{}'.format(file_path), 'r')
 data = list(csv.reader(file_object))
-#data in format ['Date','Payment Mode','Vendor','Debit','Credit','Balance']
+#csv header in format ['Date','Payment Mode','Vendor','Debit','Credit','Balance']
 number_of_entries = len(data)
 number_of_entries_categorized, number_of_entries_categorized_llm = 0, 0
 '''
@@ -54,11 +56,11 @@ Trying to create 8 lists
 6. Shopping List
 7. Un-Indexed Expenditures List
 8. Credit Sources List
-At the end merge them and dump to new csv file
+At the end merge them and dump to new categorised csv file
 '''
 
 
-'''Creating 7 Lists'''
+'''Creating 7 Lists, along with a header'''
 header = [data[0]]
 Tuition_and_Hostel_Fees = [['','','','','',''],['------','------','Tuition & Hostel Fees','------','------','------'],['','','','','',''],]
 Reccuring_Payment_and_Subscriptions_List = [['','','','','',''],['------','------','Reccuring Payment & Subscriptions','------','------','------'],['','','','','',''],]
@@ -67,10 +69,18 @@ Food_and_Transportation_List = [['','','','','',''],['------','------','Food & T
 Shopping_List = [['','','','','',''],['------','------','Shopping','------','------','------'],['','','','','',''],]
 Un_Indexed_Expenditures_List = [['','','','','',''],['------','------','Un-Indexed Expenditures','------','------','------'],['','','','','',''],]
 Credit_Sources = [['','','','','',''],['------','------','Credited Txn','------','------','------'],['','','','','',''],]
-#Checking which list each entry falls into 
 
+
+#For every vendor name from csv file, checking if any matches from keyword dictionary 
 for rows in data[1:]:
-    status = False #status = False --> did not categorise into any of the lists.    status = True --> Categorised into one of the 8 lists
+    rows = format_checked(rows)
+    status = False #status = False --> did not categorise into any of the lists.(This will then go to llm)    status = True --> Categorised into one of the 8 lists
+    
+    if (rows[4].strip(",")) != '0': #checking if credit txn, if yes adding to the credit list
+        Credit_Sources.append(rows)
+        status, number_of_entries_categorized = True, number_of_entries_categorized + 1
+        continue
+    
     for items in [element.lower() for element in keyword_dictionary["Tuition & Hostel Fees"]]:
         if items in rows[2].lower():
             Tuition_and_Hostel_Fees.append(rows)
@@ -100,7 +110,14 @@ for rows in data[1:]:
             Shopping_List.append(rows)
             status, number_of_entries_categorized = True, number_of_entries_categorized + 1
             break
-    else: # anything that is a credit txn or unindexed txn goes here
+
+    for items in [element.lower() for element in keyword_dictionary["Un-Indexed Expenditures"]]:
+        if items in rows[2].lower():
+            Un_Indexed_Expenditures_List.append(rows)
+            status, number_of_entries_categorized = True, number_of_entries_categorized + 1
+            break
+    
+    else: # anything that is a credit txn or unknown unindexed txn goes here
         if rows[3] == ' ': # anything that is a credit txn goes here
             Credit_Sources.append(rows)
             status, number_of_entries_categorized = True, number_of_entries_categorized + 1 # keeping credit txns seperate 
@@ -111,8 +128,13 @@ for rows in data[1:]:
                 '''Once we reach a txn that is unindexed, we do two things
                 1. Run categorizer llm to check if it can identify
                 2. Once it identifies, update to 'Keyword_Dictionary.py' so that we dont need to run the llm again for same vendor'''
+
                 print("\nCategorizing new vendor ", number_of_entries_categorized_llm,'done...\n')
                 llm_categorized_topic = categorize(rows[2])
+                
+                if dev_mode:
+                    print("Vendor: ", rows[2], ' Category: ', llm_categorized_topic)
+
                 if llm_categorized_topic == "Tuition & Hostel Fees":
                     Tuition_and_Hostel_Fees.append(rows)
                     keyword_dictionary["Tuition & Hostel Fees"].append(rows[2])
@@ -147,21 +169,19 @@ for rows in data[1:]:
                 keywords_file_object = open("Category Keywords.txt", 'w')
                 keywords_file_object.write(str(keyword_dictionary))
                 keywords_file_object.close()
-        
+
 final_list = header + Tuition_and_Hostel_Fees + Reccuring_Payment_and_Subscriptions_List + Books_and_Supplies_List + Food_and_Transportation_List + Shopping_List + Un_Indexed_Expenditures_List + Credit_Sources
 
 '''Writing to a csv file'''
-
 new_file_object = open("Categorized.csv", 'w', newline='')
 writer_object = csv.writer(new_file_object)
 writer_object.writerows(final_list)
 new_file_object.close()
-
 '''Done writing to a  new CSV'''
 
 file_object.close()
 
-print("\n\n\nDone with data categorization, Opening the file...")
+print("\n\nDone with data categorization, Opening the file...\n\n")
 
 os.remove("CleanCSV.csv")
 
